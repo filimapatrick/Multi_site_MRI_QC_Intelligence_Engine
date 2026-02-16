@@ -1,0 +1,159 @@
+# MRI QC Intelligence Engine Configuration
+# This file controls the behavior of the QC analysis pipeline
+
+# QC Scoring Configuration
+scoring:
+  # Metric weights for composite scoring (must sum to 1.0 per modality)
+  weights:
+    T1w:
+      snr: 0.30                    # Signal-to-noise ratio
+      cnr_gm_wm: 0.25             # Gray matter vs white matter contrast 
+      inu: 0.20                   # Intensity non-uniformity
+      background_noise: 0.10       # Background noise estimation
+      brain_mask_quality: 0.10     # Brain extraction quality
+      artifact_score: 0.05         # Motion/artifact detection
+      
+    bold:
+      tsnr_mean: 0.30             # Temporal signal-to-noise ratio
+      fd_mean: 0.25               # Mean framewise displacement
+      dvars: 0.20                 # BOLD signal variance derivatives
+      signal_drift: 0.10          # Linear signal drift  
+      motion_spikes: 0.10         # Number of motion spikes
+      temporal_smoothness: 0.05    # Temporal autocorrelation
+      
+    dwi:
+      snr_b0: 0.25                # b=0 signal-to-noise ratio
+      signal_dropout_slices: 0.20  # Slice dropout detection
+      volume_outliers: 0.20        # Volume-wise outliers
+      motion_estimate: 0.15        # Inter-volume motion
+      direction_coverage: 0.10     # Gradient direction coverage
+      signal_intensity_consistency: 0.10  # Signal consistency
+  
+  # Quality score thresholds (0-100 scale)
+  thresholds:
+    pass: 75        # Score >= 75: Pass quality
+    warning: 50     # 50 <= Score < 75: Warning
+    fail: 50        # Score < 50: Fail quality
+    
+  # Metric-specific thresholds for pass/fail decisions
+  metric_thresholds:
+    motion_fd: 0.5               # Framewise displacement (mm)
+    snr_minimum: 10              # Minimum acceptable SNR
+    tsnr_minimum: 50             # Minimum temporal SNR
+
+# Outlier Detection Configuration  
+outlier_detection:
+  enabled: true
+  
+  # Statistical thresholds
+  thresholds:
+    z_score: 2.5                 # Standard z-score threshold
+    modified_z_score: 3.5        # Modified z-score (MAD-based)
+    isolation_contamination: 0.1  # Isolation forest contamination
+    robust_covariance_contamination: 0.1  # Elliptic envelope contamination
+    
+  # Consensus requirements
+  consensus:
+    min_methods: 2               # Min detection methods for consensus
+    
+  # Site-aware detection
+  site_aware:
+    enabled: true
+    min_subjects_per_site: 3     # Minimum subjects per site for analysis
+
+# Multi-Site Analysis Configuration
+multi_site:
+  enabled: true
+  harmonization:
+    enabled: true                # Enable cross-site harmonization
+    site_column: "site"          # Column name in participants.tsv
+    reference_site: null         # Reference site (null = auto-select)
+    
+  # Site effect detection
+  site_effects:
+    detect_scanner_bias: true
+    detect_acquisition_drift: true
+    site_comparison_plots: true
+
+# Report Generation Configuration
+reporting:
+  formats: ["html", "json"]      # Output formats: html, json, csv
+  include_plots: true            # Generate visualizations
+  max_subjects_in_table: 100     # Limit subjects in HTML tables
+  
+  # HTML report customization
+  html:
+    include_individual_subjects: true
+    include_site_comparison: true
+    include_outlier_details: true
+    interactive_plots: true
+    
+  # JSON report configuration
+  json:
+    include_raw_metrics: true
+    include_processing_metadata: true
+    
+  # CSV export configuration  
+  csv:
+    separate_files: true         # Create separate CSV per data type
+    include_metadata: true
+
+# Data Processing Configuration
+processing:
+  # Parallel processing
+  n_jobs: -1                     # Number of parallel jobs (-1 = all CPUs)
+  
+  # Memory management
+  memory_limit_gb: 8             # Maximum memory usage (GB)
+  chunk_size: 50                 # Process subjects in chunks
+  
+  # Temporary files
+  temp_dir: "/tmp/mri_qc"        # Temporary directory
+  cleanup_temp: true             # Remove temp files after processing
+
+# Logging Configuration
+logging:
+  level: "INFO"                  # DEBUG, INFO, WARNING, ERROR
+  file: null                     # Log file path (null = console only)
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Quality Control Specific Parameters
+qc_parameters:
+  # Brain mask parameters
+  brain_mask:
+    auto_generate: true          # Generate mask if not provided
+    erosion_iterations: 1        # Morphological erosion steps
+    
+  # Motion parameters
+  motion:
+    fd_threshold: 0.5            # Framewise displacement threshold (mm)
+    dvars_threshold: 50          # DVARS threshold
+    spike_detection: true        # Enable motion spike detection
+    
+  # SNR calculation parameters  
+  snr:
+    noise_estimation_method: "background"  # background, air, corner
+    percentile_threshold: 25     # Percentile for tissue/background separation
+    
+  # Artifact detection
+  artifacts:
+    detect_ghosting: true        # Detect ghosting artifacts
+    detect_ringing: true         # Detect ringing artifacts
+    detect_susceptibility: true  # Detect susceptibility artifacts
+
+# Advanced Features (Optional)
+advanced:
+  # Bayesian modeling (requires optional dependencies)
+  bayesian_modeling:
+    enabled: false               # Enable hierarchical Bayesian models
+    mcmc_samples: 1000           # MCMC sampling parameters
+    
+  # Machine learning outlier detection
+  ml_outlier_detection:
+    enabled: true
+    algorithms: ["isolation_forest", "elliptic_envelope"]
+    
+  # Custom metric plugins
+  plugins:
+    enabled: false
+    plugin_dir: "./plugins"      # Directory for custom metric plugins
