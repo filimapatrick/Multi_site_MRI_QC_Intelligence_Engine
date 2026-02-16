@@ -13,7 +13,12 @@ class TestBaseQCMetrics:
     
     def test_compute_snr(self):
         """Test SNR computation."""
-        base_metrics = BaseQCMetrics()
+        # Create a concrete implementation for testing
+        class TestMetrics(BaseQCMetrics):
+            def compute(self, image_path, **kwargs):
+                return {}
+                
+        base_metrics = TestMetrics()
         
         signal = np.array([100, 110, 90, 105, 95])
         noise = np.array([5, 3, 7, 4, 6])
@@ -25,7 +30,12 @@ class TestBaseQCMetrics:
         
     def test_compute_cnr(self):
         """Test CNR computation."""
-        base_metrics = BaseQCMetrics()
+        # Create a concrete implementation for testing
+        class TestMetrics(BaseQCMetrics):
+            def compute(self, image_path, **kwargs):
+                return {}
+                
+        base_metrics = TestMetrics()
         
         tissue1 = np.array([100, 110, 90])
         tissue2 = np.array([150, 160, 140])
@@ -41,7 +51,12 @@ class TestBaseQCMetrics:
         
     def test_snr_zero_noise(self):
         """Test SNR with zero noise (should return inf)."""
-        base_metrics = BaseQCMetrics()
+        # Create a concrete implementation for testing
+        class TestMetrics(BaseQCMetrics):
+            def compute(self, image_path, **kwargs):
+                return {}
+                
+        base_metrics = TestMetrics()
         
         signal = np.array([100, 100, 100])
         noise = np.array([0, 0, 0])

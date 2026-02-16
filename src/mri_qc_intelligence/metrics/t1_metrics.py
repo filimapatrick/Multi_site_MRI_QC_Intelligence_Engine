@@ -77,7 +77,7 @@ class T1QCMetrics(BaseQCMetrics):
         
         # Morphological operations to clean up mask
         mask = ndimage.binary_fill_holes(mask)
-        mask = morphology.binary_opening(mask, np.ones((3, 3, 3)))
+        mask = morphology.opening(mask, np.ones((3, 3, 3)))
         
         # Keep only largest connected component
         labeled, num_labels = measure.label(mask, return_num=True)
