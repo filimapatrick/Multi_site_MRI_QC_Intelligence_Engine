@@ -15,6 +15,9 @@ import pandas as pd
 
 # TODO: Add pybids import once implemented
 # from bids import BIDSLayout
+import shutil
+import gzip
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +29,7 @@ class BIDSLoader:
         """Initialize BIDS loader."""
         self.layout = None
         
-    def load(self, bids_dir: Union[str, Path]) -> Dict:
+    def load(self, bids_dir: Union[str, Path], auto_fix: bool = False) -> Dict:
         """Load and validate BIDS dataset.
         
         Parameters
@@ -47,6 +50,9 @@ class BIDSLoader:
         
         if not bids_path.exists():
             raise FileNotFoundError(f"BIDS directory not found: {bids_path}")
+            
+        if auto_fix:
+            self._check_and_fix_bids_structure(bids_path)
             
         logger.info(f"Loading BIDS dataset: {bids_path}")
         
@@ -128,3 +134,60 @@ class BIDSLoader:
             f"{len(dataset_info['subjects'])} subjects, "
             f"modalities: {dataset_info['modalities']}"
         )
+
+    def _check_and_fix_bids_structure(self, root_path: Path):
+        """Check for flat structure and reorganize into BIDS format."""
+        
+        # Check if anatomy folder exists but is flat
+        anat_source = root_path / "anat"
+        if not anat_source.exists():
+            return
+            
+        # Check if it contains flat files that look like subjects
+        flat_files = list(anat_source.glob("sub-*_T1w.nii")) + list(anat_source.glob("sub-*_T1w.nii.gz"))
+        if not flat_files:
+            return
+            
+        logger.info(f"Found flat anatomy directory with {len(flat_files)} files. Reorganizing...")
+        
+        # Create dataset_description.json if missing
+        desc_file = root_path / "dataset_description.json"
+        if not desc_file.exists():
+            description = {
+                "Name": "Auto-Reorganized Dataset",
+                "BIDSVersion": "1.6.0",
+                "Authors": ["MRI QC Intelligence Engine"]
+            }
+            with open(desc_file, "w") as f:
+                json.dump(description, f, indent=4)
+        
+        moved_count = 0
+        for file_path in flat_files:
+            filename = file_path.name
+            parts = filename.split('_')
+            subject_id = next((p for p in parts if p.startswith('sub-')), None)
+            
+            if not subject_id:
+                continue
+                
+            target_dir = root_path / subject_id / "anat"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            if filename.endswith(".nii"):
+                target_filename = filename + ".gz"
+                target_path = target_dir / target_filename
+                with open(file_path, 'rb') as f_in:
+                    with gzip.open(target_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                file_path.unlink()
+            else:
+                target_path = target_dir / filename
+                shutil.move(str(file_path), str(target_path))
+                
+            moved_count += 1
+            
+        # Cleanup
+        if not any(anat_source.iterdir()):
+            anat_source.rmdir()
+            
+        logger.info(f"Reorganized {moved_count} files into BIDS format")

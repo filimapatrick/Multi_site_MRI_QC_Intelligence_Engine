@@ -141,6 +141,10 @@ class OutlierDetector:
             subject_metrics = dataset_metrics[subject_id]
             for modality, metrics in subject_metrics.items():
                 for metric_name, value in metrics.items():
+                    # Skip non-scalar values
+                    if not isinstance(value, (int, float, np.number)) or isinstance(value, (bool, np.bool_)):
+                        continue
+                        
                     if np.isfinite(value):  # Skip inf/nan values
                         feature_name = f'{modality}_{metric_name}'
                         if len(feature_names) == len(subject_features):

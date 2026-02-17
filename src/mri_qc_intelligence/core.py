@@ -47,13 +47,15 @@ class QCEngine:
         self.outlier_detector = OutlierDetector()
         self.report_generator = ReportGenerator()
         
-    def load_bids_dataset(self, bids_dir: Union[str, Path]) -> Dict:
+    def load_bids_dataset(self, bids_dir: Union[str, Path], auto_fix: bool = False) -> Dict:
         """Load and validate BIDS dataset.
         
         Parameters
         ----------
         bids_dir : str or Path
             Path to BIDS dataset
+        auto_fix : bool, optional
+            Whether to automatically fix BIDS structure issues
             
         Returns
         -------
@@ -61,7 +63,7 @@ class QCEngine:
             Loaded dataset information
         """
         logger.info(f"Loading BIDS dataset from {bids_dir}")
-        return self.data_loader.load(bids_dir)
+        return self.data_loader.load(bids_dir, auto_fix=auto_fix)
         
     def analyze(self, 
                 dataset: Dict,
@@ -88,19 +90,94 @@ class QCEngine:
         if modalities is None:
             modalities = list(self.metrics.keys())
             
-        results = {}
+        bids_dir = Path(dataset['bids_dir'])
+        subject_list = subjects if subjects else dataset['subjects']
         
-        for modality in modalities:
-            if modality in self.metrics:
-                logger.info(f"Computing {modality} metrics")
-                # Placeholder for metric computation
-                # results[modality] = self.metrics[modality].compute(dataset)
+        # Mapping for BIDS folders and suffixes
+        modality_map = {
+            'T1w': {'folder': 'anat', 'suffix': 'T1w'},
+            'bold': {'folder': 'func', 'suffix': 'bold'},
+            'dwi': {'folder': 'dwi', 'suffix': 'dwi'}
+        }
+        
+        # Structure to hold raw metrics: subject -> modality -> metrics
+        raw_metrics = {}
+        
+        for subject in subject_list:
+            logger.info(f"Processing subject: {subject}")
+            raw_metrics[subject] = {}
+            
+            for modality in modalities:
+                if modality not in self.metrics:
+                    continue
+                    
+                info = modality_map.get(modality)
+                if not info:
+                    continue
+                    
+                # Construct path search strategy
+                subject_dir = bids_dir / subject
+                modality_dir = subject_dir / info['folder']
                 
-        # Placeholder for scoring and outlier detection
-        # scores = self.scorer.compute_scores(results)
-        # outliers = self.outlier_detector.detect(results, scores)
+                if not modality_dir.exists():
+                    continue
+                    
+                # Find matching file (using glob for robustness)
+                files = list(modality_dir.glob(f"*{info['suffix']}.nii.gz"))
+                
+                if not files:
+                    logger.warning(f"No {modality} file found for {subject}")
+                    continue
+                    
+                # Take first file found
+                file_path = files[0]
+                
+                try:
+                    logger.info(f"Computing {modality} metrics for {subject}")
+                    
+                    # Compute metrics based on modality type
+                    if modality == 'T1w':
+                        metric_results = self.metrics[modality].compute(file_path)
+                    elif modality == 'bold':
+                         # TODO: Add motion params finding
+                        metric_results = self.metrics[modality].compute(file_path)
+                    elif modality == 'dwi':
+                        # TODO: Add bval/bvec finding
+                        bval_files = list(modality_dir.glob(f"*{info['suffix']}.bval"))
+                        bvec_files = list(modality_dir.glob(f"*{info['suffix']}.bvec"))
+                        bval_path = bval_files[0] if bval_files else None
+                        bvec_path = bvec_files[0] if bvec_files else None
+                        
+                        metric_results = self.metrics[modality].compute(
+                            file_path, 
+                            bval_path=bval_path, 
+                            bvec_path=bvec_path
+                        )
+                    else:
+                        metric_results = self.metrics[modality].compute(file_path)
+                    
+                    raw_metrics[subject][modality] = metric_results
+                    
+                    # Log computed metrics
+                    logger.info(f"📊 {subject} {modality} Metrics Computed:")
+                    for key, value in metric_results.items():
+                        if isinstance(value, float):
+                            logger.info(f"   - {key}: {value:.4f}")
+                        else:
+                            logger.info(f"   - {key}: {value}")
+                            
+                except Exception as e:
+                    logger.error(f"Failed to compute {modality} metrics for {subject}: {e}")
+                
+        # Compute scoring and detection
+        scores = self.scorer.compute_scores(raw_metrics)
+        outliers = self.outlier_detector.detect_outliers(raw_metrics, scores)
         
-        return results
+        return {
+            'dataset_metrics': raw_metrics,
+            'scores': scores,
+            'outliers': outliers
+        }
         
     def generate_report(self, results: Dict, output_path: Union[str, Path]):
         """Generate QC report.
@@ -113,7 +190,7 @@ class QCEngine:
             Output path for report
         """
         logger.info(f"Generating report at {output_path}")
-        self.report_generator.generate(results, output_path)
+        self.report_generator.generate_report(results, output_path)
         
     def _load_config(self, config_path: Optional[Path]) -> Dict:
         """Load configuration file."""

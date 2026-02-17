@@ -169,3 +169,6 @@ qc_reports/
 *.nii.gz
 *.h5
 .DS_Store
+dummy_bids_dataset/
+my_bids_dataset/
+test_flat_data/

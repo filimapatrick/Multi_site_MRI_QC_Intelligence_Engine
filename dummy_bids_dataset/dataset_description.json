@@ -1,0 +1,7 @@
+{
+    "Name": "Dummy BIDS Dataset",
+    "BIDSVersion": "1.6.0",
+    "Authors": [
+        "Automated Generator"
+    ]
+}

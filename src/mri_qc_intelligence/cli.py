@@ -42,6 +42,9 @@ import logging
 @click.option('--detect-outliers',
               is_flag=True, 
               help='Enable outlier detection')
+@click.option('--auto-fix-bids',
+              is_flag=True,
+              help='Automatically reorganize flat files into BIDS format')
 @click.option('--verbose', '-v',
               is_flag=True,
               help='Enable verbose logging')
@@ -53,6 +56,7 @@ def main(bids_dir: Path,
          config: Optional[Path],
          multi_site: bool,
          detect_outliers: bool,
+         auto_fix_bids: bool,
          verbose: bool):
     """Run automated MRI Quality Control analysis.
     
@@ -87,7 +91,7 @@ def main(bids_dir: Path,
         engine = QCEngine(config_path=config)
         
         # Load BIDS dataset
-        dataset = engine.load_bids_dataset(bids_dir)
+        dataset = engine.load_bids_dataset(bids_dir, auto_fix=auto_fix_bids)
         
         # Process modality selection
         if 'all' in modality:

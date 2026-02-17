@@ -138,7 +138,13 @@ class QCScorer:
             normalization_params[modality] = {}
             
             for metric_name, values in metrics.items():
-                values = np.array(values)
+                # Filter out non-scalar values (dicts, lists, arrays)
+                scalar_values = [v for v in values if isinstance(v, (int, float, np.number)) and not isinstance(v, (bool, np.bool_))]
+                
+                if not scalar_values:
+                    continue
+                    
+                values = np.array(scalar_values)
                 values = values[np.isfinite(values)]  # Remove inf/nan
                 
                 if len(values) > 0:

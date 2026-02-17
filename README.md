@@ -158,7 +158,7 @@ docker run -v /path/to/your/data:/data mri-qc-intelligence --bids-dir /data
 
 ```bash
 # Basic QC analysis for all modalities
-qc_engine --bids-dir /path/to/dataset
+qc_engine --bids-dir /path/to/dataset. 
 
 # T1-weighted specific analysis
 qc_engine --bids-dir /path/to/dataset --modality T1w
